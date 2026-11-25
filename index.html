@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moja mapa</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <style>
+    html, body, #map { height: 100%; margin: 0; background: #111; }
+    .panel {
+      position: absolute; z-index: 1000; background: rgba(17,17,17,.85);
+      color: #fff; border-radius: 10px; font: 14px system-ui, sans-serif;
+      padding: 8px 12px;
+    }
+    #status { top: 10px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+    #center {
+      bottom: 24px; right: 16px; border: 0; cursor: pointer; font-size: 15px;
+      padding: 10px 14px; background: #2196f3; color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="status" class="panel">Szukam lokalizacji…</div>
+  <button id="center" class="panel">📍 Wycentruj</button>
+  <div id="map"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script>
+    const map = L.map('map', { zoomControl: false }).setView([52.23, 21.01], 13);
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+    // Ciemny styl mapy (CARTO, bazuje na OpenStreetMap)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Własne punkty: dopisz tutaj swoje miejsca
+    const spots = [
+      { name: 'Przykład', lat: 52.23, lng: 21.01 },
+    ];
+    spots.forEach(s => L.marker([s.lat, s.lng]).addTo(map).bindPopup(s.name));
+
+    // Lokalizacja na żywo
+    const status = document.getElementById('status');
+    let marker = null, circle = null, lastLL = null;
+
+    navigator.geolocation.watchPosition(pos => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      const ll = [latitude, longitude];
+      lastLL = ll;
+
+      if (!marker) {
+        marker = L.circleMarker(ll, {
+          radius: 8, color: '#fff', weight: 2,
+          fillColor: '#2196f3', fillOpacity: 1
+        }).addTo(map);
+        circle = L.circle(ll, { radius: accuracy, weight: 1, color: '#2196f3' }).addTo(map);
+        map.setView(ll, 16);
+      } else {
+        marker.setLatLng(ll);
+        circle.setLatLng(ll).setRadius(accuracy);
+      }
+      status.textContent = `Dokładność: ±${Math.round(accuracy)} m`;
+    }, err => {
+      status.textContent = 'Brak lokalizacji: ' + err.message;
+    }, { enableHighAccuracy: true, maximumAge: 5000 });
+
+    document.getElementById('center').addEventListener('click', () => {
+      if (lastLL) map.setView(lastLL, 16);
+      else status.textContent = 'Czekam na lokalizację…';
+    });
+  </script>
+</body>
+</html>
